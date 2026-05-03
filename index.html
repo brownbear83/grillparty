@@ -7,62 +7,162 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-body { font-family: Arial; margin: 20px; background:#f5f5f5; }
-input, button { padding:8px; margin:5px; }
-table { border-collapse: collapse; width:100%; background:white; }
-th, td { border:1px solid #ccc; padding:10px; text-align:center; }
+body {
+  font-family: Arial;
+  margin:0;
+  background:#f0f2f5;
+}
+
+header {
+  background:#ff7b00;
+  color:white;
+  padding:15px;
+  text-align:center;
+  font-size:20px;
+}
+
+.container {
+  padding:15px;
+  max-width:600px;
+  margin:auto;
+}
+
+.card {
+  background:white;
+  padding:15px;
+  border-radius:12px;
+  margin-bottom:10px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+
+input, select {
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+button {
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:10px;
+  background:#ff7b00;
+  color:white;
+  font-size:16px;
+}
+
+.entry {
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:10px;
+  color:#333;
+}
+
+.Fleisch { background:#ffe5e5; }
+.Salat { background:#e6ffe6; }
+.Getränke { background:#e6f0ff; }
+.Dessert { background:#fff0e6; }
+.Sonstiges { background:#f2f2f2; }
+
+.actions {
+  margin-top:8px;
+}
+
+.actions button {
+  width:auto;
+  margin-right:5px;
+  padding:6px 10px;
+  font-size:14px;
+}
+
+.total {
+  text-align:center;
+  margin-top:15px;
+  font-weight:bold;
+}
 </style>
 </head>
 
 <body>
 
-<h1>🔥 Grillfeier Planung</h1>
+<header>🔥 Grillfeier Planung</header>
 
+<div class="container">
+
+<div class="card">
 <input id="name" placeholder="Name">
 <input id="adults" type="number" placeholder="Erwachsene">
 <input id="kids" type="number" placeholder="Kinder">
+
+<select id="category">
+  <option>Fleisch</option>
+  <option>Salat</option>
+  <option>Getränke</option>
+  <option>Dessert</option>
+  <option>Sonstiges</option>
+</select>
+
 <input id="bring" placeholder="Ich bringe mit">
-<button onclick="addEntry()">Hinzufügen</button>
+<input id="code" placeholder="Code (zum Bearbeiten)">
 
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Erwachsene</th>
-<th>Kinder</th>
-<th>Mitbringen</th>
-</tr>
-</thead>
-<tbody id="list"></tbody>
-</table>
+<button onclick="addEntry()">➕ Eintragen</button>
+</div>
 
-<h3 id="total"></h3>
+<div id="list"></div>
+
+<div class="total" id="total"></div>
+
+</div>
 
 <script>
-// 🔴 HIER DEINE FIREBASE DATEN EINTRAGEN
+// 🔴 FIREBASE DATEN EINTRAGEN
 const firebaseConfig = {
   apiKey: "DEIN_API_KEY",
   authDomain: "DEIN_PROJECT.firebaseapp.com",
   projectId: "DEIN_PROJECT_ID"
 };
 
-const app = firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-const list = document.getElementById("list");
-
 function addEntry() {
-  const name = document.getElementById("name").value;
-  const adults = document.getElementById("adults").value;
-  const kids = document.getElementById("kids").value;
-  const bring = document.getElementById("bring").value;
+  const entry = {
+    name: name.value,
+    adults: adults.value,
+    kids: kids.value,
+    category: category.value,
+    bring: bring.value,
+    code: code.value
+  };
 
-  if (!name) return alert("Name fehlt");
+  if (!entry.name) return alert("Name fehlt");
 
-  db.collection("grill").add({
-    name, adults, kids, bring
-  });
+  db.collection("grill").add(entry);
+
+  name.value = adults.value = kids.value = bring.value = code.value = "";
+}
+
+function deleteEntry(id, savedCode) {
+  const input = prompt("Code?");
+  if (input === savedCode) {
+    db.collection("grill").doc(id).delete();
+  }
+}
+
+function editEntry(id, data) {
+  const input = prompt("Code?");
+  if (input !== data.code) return;
+
+  const newBring = prompt("Neuer Eintrag:", data.bring);
+  if (newBring !== null) {
+    db.collection("grill").doc(id).update({ bring: newBring });
+  }
 }
 
 db.collection("grill").onSnapshot(snapshot => {
@@ -74,20 +174,23 @@ db.collection("grill").onSnapshot(snapshot => {
     const d = doc.data();
 
     list.innerHTML += `
-      <tr>
-        <td>${d.name}</td>
-        <td>${d.adults}</td>
-        <td>${d.kids}</td>
-        <td>${d.bring}</td>
-      </tr>
+      <div class="entry ${d.category}">
+        <strong>${d.name}</strong><br>
+        👨 Erwachsene: ${d.adults || 0} | 👶 Kinder: ${d.kids || 0}<br>
+        🍽 ${d.category}: ${d.bring}
+
+        <div class="actions">
+          <button onclick='editEntry("${doc.id}", ${JSON.stringify(d)})'>✏️</button>
+          <button onclick='deleteEntry("${doc.id}", "${d.code}")'>❌</button>
+        </div>
+      </div>
     `;
 
     totalA += Number(d.adults || 0);
     totalK += Number(d.kids || 0);
   });
 
-  document.getElementById("total").innerText =
-    `Gesamt: ${totalA} Erwachsene, ${totalK} Kinder`;
+  total.innerText = `👥 Gesamt: ${totalA} Erwachsene, ${totalK} Kinder`;
 });
 </script>
 
