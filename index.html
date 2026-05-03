@@ -10,11 +10,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body {
-  font-family: Arial;
-  margin:0;
-  background:#f0f2f5;
-}
+body { font-family: Arial; margin:0; background:#f0f2f5; }
 
 header {
   background:#ff7b00;
@@ -57,11 +53,17 @@ button {
   font-size:16px;
 }
 
+.small-btn {
+  width:auto;
+  padding:5px 10px;
+  font-size:14px;
+  margin-left:5px;
+}
+
 .entry {
   padding:12px;
   border-radius:10px;
   margin-bottom:10px;
-  color:#333;
 }
 
 .Fleisch { background:#ffe5e5; }
@@ -70,15 +72,13 @@ button {
 .Dessert { background:#fff0e6; }
 .Sonstiges { background:#f2f2f2; }
 
-.actions {
-  margin-top:8px;
-}
-
-.actions button {
-  width:auto;
-  margin-right:5px;
-  padding:6px 10px;
-  font-size:14px;
+.item {
+  display:flex;
+  justify-content:space-between;
+  background:#fff;
+  padding:5px;
+  margin-top:5px;
+  border-radius:6px;
 }
 
 .total {
@@ -108,10 +108,13 @@ button {
   <option>Sonstiges</option>
 </select>
 
-<input id="bring" placeholder="Ich bringe mit">
-<input id="code" placeholder="Code (zum Bearbeiten)">
+<input id="itemInput" placeholder="Was bringst du mit?">
+<button onclick="addItem()">➕ hinzufügen</button>
 
-<button onclick="addEntry()">➕ Eintragen</button>
+<div id="itemsPreview"></div>
+
+<input id="code" placeholder="Code (zum Bearbeiten)">
+<button onclick="addEntry()">🚀 Eintragen</button>
 </div>
 
 <div id="list"></div>
@@ -121,7 +124,7 @@ button {
 </div>
 
 <script>
-// 🔴 FIREBASE DATEN EINTRAGEN
+// 🔴 FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "DEIN_API_KEY",
   authDomain: "DEIN_PROJECT.firebaseapp.com",
@@ -131,23 +134,64 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// 📦 Items temporär speichern
+let items = [];
+
+// ➕ Item hinzufügen
+function addItem() {
+  if (!itemInput.value) return;
+  items.push(itemInput.value);
+  itemInput.value = "";
+  renderItems();
+}
+
+// 🔄 Vorschau anzeigen
+function renderItems() {
+  itemsPreview.innerHTML = items.map((item, i) => `
+    <div class="item">
+      ${item}
+      <div>
+        <button class="small-btn" onclick="editItem(${i})">✏️</button>
+        <button class="small-btn" onclick="deleteItem(${i})">❌</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+// ✏️ Item bearbeiten
+function editItem(index) {
+  const newVal = prompt("Bearbeiten:", items[index]);
+  if (newVal) {
+    items[index] = newVal;
+    renderItems();
+  }
+}
+
+// ❌ Item löschen
+function deleteItem(index) {
+  items.splice(index, 1);
+  renderItems();
+}
+
+// 🚀 Eintrag speichern
 function addEntry() {
-  const entry = {
+  if (!name.value) return alert("Name fehlt");
+
+  db.collection("grill").add({
     name: name.value,
     adults: adults.value,
     kids: kids.value,
     category: category.value,
-    bring: bring.value,
+    items: items,
     code: code.value
-  };
+  });
 
-  if (!entry.name) return alert("Name fehlt");
-
-  db.collection("grill").add(entry);
-
-  name.value = adults.value = kids.value = bring.value = code.value = "";
+  name.value = adults.value = kids.value = code.value = "";
+  items = [];
+  renderItems();
 }
 
+// ❌ löschen
 function deleteEntry(id, savedCode) {
   const input = prompt("Code?");
   if (input === savedCode) {
@@ -155,16 +199,19 @@ function deleteEntry(id, savedCode) {
   }
 }
 
+// ✏️ bearbeiten
 function editEntry(id, data) {
   const input = prompt("Code?");
   if (input !== data.code) return;
 
-  const newBring = prompt("Neuer Eintrag:", data.bring);
-  if (newBring !== null) {
-    db.collection("grill").doc(id).update({ bring: newBring });
+  const newItem = prompt("Neues Item hinzufügen:");
+  if (newItem) {
+    data.items.push(newItem);
+    db.collection("grill").doc(id).update({ items: data.items });
   }
 }
 
+// 🔄 Live Anzeige
 db.collection("grill").onSnapshot(snapshot => {
   list.innerHTML = "";
   let totalA = 0;
@@ -176,13 +223,14 @@ db.collection("grill").onSnapshot(snapshot => {
     list.innerHTML += `
       <div class="entry ${d.category}">
         <strong>${d.name}</strong><br>
-        👨 Erwachsene: ${d.adults || 0} | 👶 Kinder: ${d.kids || 0}<br>
-        🍽 ${d.category}: ${d.bring}
+        👨 ${d.adults || 0} | 👶 ${d.kids || 0}
 
-        <div class="actions">
-          <button onclick='editEntry("${doc.id}", ${JSON.stringify(d)})'>✏️</button>
-          <button onclick='deleteEntry("${doc.id}", "${d.code}")'>❌</button>
+        <div>
+          ${d.items.map(i => `<div class="item">${i}</div>`).join("")}
         </div>
+
+        <button class="small-btn" onclick='editEntry("${doc.id}", ${JSON.stringify(d)})'>➕ Item</button>
+        <button class="small-btn" onclick='deleteEntry("${doc.id}", "${d.code}")'>❌</button>
       </div>
     `;
 
