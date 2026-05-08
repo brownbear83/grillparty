@@ -32,19 +32,17 @@ header {
   background:linear-gradient(135deg,#ff7a18,#ffb347);
   color:white;
   padding:16px;
-  font-size:20px;
   text-align:center;
+  font-size:20px;
   font-weight:600;
-  box-shadow:var(--shadow);
 }
 
 .container {
-  max-width:600px;
+  max-width:700px;
   margin:auto;
   padding:15px;
 }
 
-/* Card */
 .card {
   background:var(--card);
   border-radius:16px;
@@ -53,17 +51,14 @@ header {
   margin-bottom:15px;
 }
 
-/* Inputs */
 input {
   width:100%;
   padding:12px;
   margin-top:10px;
   border-radius:10px;
   border:1px solid #ddd;
-  font-size:15px;
 }
 
-/* Buttons */
 button {
   width:100%;
   padding:12px;
@@ -72,17 +67,9 @@ button {
   border-radius:12px;
   background:var(--primary);
   color:white;
-  font-size:15px;
   font-weight:600;
-  cursor:pointer;
-  transition:0.2s;
 }
 
-button:hover {
-  transform:scale(1.02);
-}
-
-/* Item Chips */
 .item {
   display:inline-block;
   background:#eef2ff;
@@ -92,17 +79,8 @@ button:hover {
   font-size:13px;
 }
 
-.item button {
-  background:none;
-  color:#999;
-  margin-left:6px;
-  padding:0;
-  font-size:12px;
-}
-
-/* Entry */
 .entry {
-  background:var(--card);
+  background:white;
   border-radius:16px;
   padding:14px;
   margin-bottom:12px;
@@ -112,32 +90,22 @@ button:hover {
 .entry-header {
   display:flex;
   justify-content:space-between;
-  align-items:center;
-}
-
-.name {
-  font-weight:600;
-  font-size:16px;
 }
 
 .meta {
-  color:var(--muted);
   font-size:13px;
+  color:var(--muted);
 }
 
 .delete-btn {
   background:#ef4444;
   width:auto;
   padding:6px 10px;
-  font-size:13px;
-  border-radius:8px;
 }
 
-/* Total */
 .total {
   text-align:center;
   font-weight:600;
-  margin-top:10px;
 }
 </style>
 </head>
@@ -149,7 +117,7 @@ button:hover {
 <div class="container">
 
 <div class="card">
-<input id="inviteCode" placeholder="Einladungs-Code">
+<input id="inviteCode" placeholder="Einladungscode">
 
 <input id="name" placeholder="Name">
 <input id="adults" type="number" placeholder="Erwachsene">
@@ -160,8 +128,15 @@ button:hover {
 
 <div id="itemsPreview"></div>
 
-<input id="userCode" placeholder="Dein Code">
 <button onclick="addEntry()">🚀 Eintragen</button>
+</div>
+
+<div class="card">
+<h3>👥 Teilnehmer</h3>
+<div id="participants"></div>
+
+<h3 style="margin-top:15px;">🍽 Mitbringliste</h3>
+<div id="itemsList"></div>
 </div>
 
 <div id="list"></div>
@@ -170,7 +145,6 @@ button:hover {
 </div>
 
 <script>
-// 🔴 Firebase Config
 const firebaseConfig = {
   apiKey: "DEIN_API_KEY",
   authDomain: "DEIN_PROJECT.firebaseapp.com",
@@ -180,11 +154,12 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// 🔴 EINMAL DEFINIEREN
 const INVITE_CODE = "GRILL2026";
 
 let items = [];
 
-// ➕ Item hinzufügen
+// Item hinzufügen
 function addItem() {
   if (!itemInput.value) return;
   items.push(itemInput.value);
@@ -192,7 +167,6 @@ function addItem() {
   renderItems();
 }
 
-// Vorschau
 function renderItems() {
   itemsPreview.innerHTML = items.map((i, idx) =>
     `<span class="item">${i} <button onclick="delItem(${idx})">×</button></span>`
@@ -204,10 +178,10 @@ function delItem(i) {
   renderItems();
 }
 
-// Eintrag speichern
+// Eintrag
 function addEntry() {
   if (inviteCode.value !== INVITE_CODE)
-    return alert("Falscher Code");
+    return alert("Falscher Einladungscode");
 
   if (!name.value) return alert("Name fehlt");
 
@@ -215,19 +189,18 @@ function addEntry() {
     name: name.value,
     adults: Number(adults.value || 0),
     kids: Number(kids.value || 0),
-    items: items,
-    userCode: userCode.value
+    items: items
   });
 
-  name.value = adults.value = kids.value = userCode.value = "";
+  name.value = adults.value = kids.value = "";
   items = [];
   renderItems();
 }
 
 // Löschen
-function deleteEntry(id, code) {
-  const input = prompt("Dein Code?");
-  if (input === code) {
+function deleteEntry(id) {
+  const input = prompt("Einladungscode?");
+  if (input === INVITE_CODE) {
     db.collection("grill").doc(id).delete();
   }
 }
@@ -235,30 +208,48 @@ function deleteEntry(id, code) {
 // Anzeige
 db.collection("grill").onSnapshot(snapshot => {
   list.innerHTML = "";
+  participants.innerHTML = "";
+  itemsList.innerHTML = "";
+
   let totalA = 0;
   let totalK = 0;
 
+  const itemMap = {};
+
   snapshot.forEach(doc => {
     const d = doc.data();
+
+    participants.innerHTML += `
+      <div class="item">${d.name} (${d.adults}👨 / ${d.kids}👶)</div>
+    `;
+
+    d.items.forEach(item => {
+      if (!itemMap[item]) itemMap[item] = [];
+      itemMap[item].push(d.name);
+    });
 
     list.innerHTML += `
       <div class="entry">
         <div class="entry-header">
           <div>
-            <div class="name">${d.name}</div>
-            <div class="meta">👨 ${d.adults} | 👶 ${d.kids}</div>
+            <strong>${d.name}</strong><br>
+            <span class="meta">👨 ${d.adults} | 👶 ${d.kids}</span>
           </div>
-          <button class="delete-btn" onclick='deleteEntry("${doc.id}", "${d.userCode}")'>❌</button>
+          <button class="delete-btn" onclick='deleteEntry("${doc.id}")'>❌</button>
         </div>
 
-        <div>
-          ${d.items.map(i => `<span class="item">${i}</span>`).join("")}
-        </div>
+        ${d.items.map(i => `<span class="item">${i}</span>`).join("")}
       </div>
     `;
 
     totalA += d.adults;
     totalK += d.kids;
+  });
+
+  Object.keys(itemMap).forEach(item => {
+    itemsList.innerHTML += `
+      <div class="item"><strong>${item}</strong>: ${itemMap[item].join(", ")}</div>
+    `;
   });
 
   total.innerText = `👥 ${totalA} Erwachsene • ${totalK} Kinder`;
