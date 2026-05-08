@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Grillfeier Planung</title>
+<title>Grillfeier</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
@@ -10,121 +10,167 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body { font-family: Arial; margin:0; background:#f0f2f5; }
+:root {
+  --primary:#ff7a18;
+  --bg:#f6f7fb;
+  --card:#ffffff;
+  --text:#1f2937;
+  --muted:#6b7280;
+  --shadow:0 8px 20px rgba(0,0,0,0.08);
+}
+
+body {
+  margin:0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+  background:var(--bg);
+  color:var(--text);
+}
 
 header {
-  background:#ff7b00;
+  position:sticky;
+  top:0;
+  background:linear-gradient(135deg,#ff7a18,#ffb347);
   color:white;
-  padding:15px;
-  text-align:center;
+  padding:16px;
   font-size:20px;
+  text-align:center;
+  font-weight:600;
+  box-shadow:var(--shadow);
 }
 
 .container {
-  padding:15px;
   max-width:600px;
   margin:auto;
-}
-
-.card {
-  background:white;
   padding:15px;
-  border-radius:12px;
-  margin-bottom:10px;
-  box-shadow:0 2px 5px rgba(0,0,0,0.1);
 }
 
-input, select {
+/* Card */
+.card {
+  background:var(--card);
+  border-radius:16px;
+  padding:16px;
+  box-shadow:var(--shadow);
+  margin-bottom:15px;
+}
+
+/* Inputs */
+input {
   width:100%;
-  padding:10px;
-  margin-top:8px;
-  border-radius:8px;
-  border:1px solid #ccc;
+  padding:12px;
+  margin-top:10px;
+  border-radius:10px;
+  border:1px solid #ddd;
+  font-size:15px;
 }
 
+/* Buttons */
 button {
   width:100%;
   padding:12px;
   margin-top:10px;
   border:none;
-  border-radius:10px;
-  background:#ff7b00;
+  border-radius:12px;
+  background:var(--primary);
   color:white;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+button:hover {
+  transform:scale(1.02);
+}
+
+/* Item Chips */
+.item {
+  display:inline-block;
+  background:#eef2ff;
+  padding:6px 10px;
+  border-radius:999px;
+  margin:4px;
+  font-size:13px;
+}
+
+.item button {
+  background:none;
+  color:#999;
+  margin-left:6px;
+  padding:0;
+  font-size:12px;
+}
+
+/* Entry */
+.entry {
+  background:var(--card);
+  border-radius:16px;
+  padding:14px;
+  margin-bottom:12px;
+  box-shadow:var(--shadow);
+}
+
+.entry-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.name {
+  font-weight:600;
   font-size:16px;
 }
 
-.small-btn {
+.meta {
+  color:var(--muted);
+  font-size:13px;
+}
+
+.delete-btn {
+  background:#ef4444;
   width:auto;
-  padding:5px 10px;
-  font-size:14px;
-  margin-left:5px;
+  padding:6px 10px;
+  font-size:13px;
+  border-radius:8px;
 }
 
-.entry {
-  padding:12px;
-  border-radius:10px;
-  margin-bottom:10px;
-}
-
-.Fleisch { background:#ffe5e5; }
-.Salat { background:#e6ffe6; }
-.Getränke { background:#e6f0ff; }
-.Dessert { background:#fff0e6; }
-.Sonstiges { background:#f2f2f2; }
-
-.item {
-  display:flex;
-  justify-content:space-between;
-  background:#fff;
-  padding:5px;
-  margin-top:5px;
-  border-radius:6px;
-}
-
+/* Total */
 .total {
   text-align:center;
-  margin-top:15px;
-  font-weight:bold;
+  font-weight:600;
+  margin-top:10px;
 }
 </style>
 </head>
 
 <body>
 
-<header>🔥 Grillfeier Planung</header>
+<header>🔥 Grillfeier</header>
 
 <div class="container">
 
 <div class="card">
+<input id="inviteCode" placeholder="Einladungs-Code">
+
 <input id="name" placeholder="Name">
 <input id="adults" type="number" placeholder="Erwachsene">
 <input id="kids" type="number" placeholder="Kinder">
 
-<select id="category">
-  <option>Fleisch</option>
-  <option>Salat</option>
-  <option>Getränke</option>
-  <option>Dessert</option>
-  <option>Sonstiges</option>
-</select>
-
-<input id="itemInput" placeholder="Was bringst du mit?">
+<input id="itemInput" placeholder="Mitbringen">
 <button onclick="addItem()">➕ hinzufügen</button>
 
 <div id="itemsPreview"></div>
 
-<input id="code" placeholder="Code (zum Bearbeiten)">
+<input id="userCode" placeholder="Dein Code">
 <button onclick="addEntry()">🚀 Eintragen</button>
 </div>
 
 <div id="list"></div>
-
 <div class="total" id="total"></div>
 
 </div>
 
 <script>
-// 🔴 FIREBASE CONFIG
+// 🔴 Firebase Config
 const firebaseConfig = {
   apiKey: "DEIN_API_KEY",
   authDomain: "DEIN_PROJECT.firebaseapp.com",
@@ -134,7 +180,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 📦 Items temporär speichern
+const INVITE_CODE = "GRILL2026";
+
 let items = [];
 
 // ➕ Item hinzufügen
@@ -145,73 +192,47 @@ function addItem() {
   renderItems();
 }
 
-// 🔄 Vorschau anzeigen
+// Vorschau
 function renderItems() {
-  itemsPreview.innerHTML = items.map((item, i) => `
-    <div class="item">
-      ${item}
-      <div>
-        <button class="small-btn" onclick="editItem(${i})">✏️</button>
-        <button class="small-btn" onclick="deleteItem(${i})">❌</button>
-      </div>
-    </div>
-  `).join("");
+  itemsPreview.innerHTML = items.map((i, idx) =>
+    `<span class="item">${i} <button onclick="delItem(${idx})">×</button></span>`
+  ).join("");
 }
 
-// ✏️ Item bearbeiten
-function editItem(index) {
-  const newVal = prompt("Bearbeiten:", items[index]);
-  if (newVal) {
-    items[index] = newVal;
-    renderItems();
-  }
-}
-
-// ❌ Item löschen
-function deleteItem(index) {
-  items.splice(index, 1);
+function delItem(i) {
+  items.splice(i,1);
   renderItems();
 }
 
-// 🚀 Eintrag speichern
+// Eintrag speichern
 function addEntry() {
+  if (inviteCode.value !== INVITE_CODE)
+    return alert("Falscher Code");
+
   if (!name.value) return alert("Name fehlt");
 
   db.collection("grill").add({
     name: name.value,
-    adults: adults.value,
-    kids: kids.value,
-    category: category.value,
+    adults: Number(adults.value || 0),
+    kids: Number(kids.value || 0),
     items: items,
-    code: code.value
+    userCode: userCode.value
   });
 
-  name.value = adults.value = kids.value = code.value = "";
+  name.value = adults.value = kids.value = userCode.value = "";
   items = [];
   renderItems();
 }
 
-// ❌ löschen
-function deleteEntry(id, savedCode) {
-  const input = prompt("Code?");
-  if (input === savedCode) {
+// Löschen
+function deleteEntry(id, code) {
+  const input = prompt("Dein Code?");
+  if (input === code) {
     db.collection("grill").doc(id).delete();
   }
 }
 
-// ✏️ bearbeiten
-function editEntry(id, data) {
-  const input = prompt("Code?");
-  if (input !== data.code) return;
-
-  const newItem = prompt("Neues Item hinzufügen:");
-  if (newItem) {
-    data.items.push(newItem);
-    db.collection("grill").doc(id).update({ items: data.items });
-  }
-}
-
-// 🔄 Live Anzeige
+// Anzeige
 db.collection("grill").onSnapshot(snapshot => {
   list.innerHTML = "";
   let totalA = 0;
@@ -221,24 +242,26 @@ db.collection("grill").onSnapshot(snapshot => {
     const d = doc.data();
 
     list.innerHTML += `
-      <div class="entry ${d.category}">
-        <strong>${d.name}</strong><br>
-        👨 ${d.adults || 0} | 👶 ${d.kids || 0}
-
-        <div>
-          ${d.items.map(i => `<div class="item">${i}</div>`).join("")}
+      <div class="entry">
+        <div class="entry-header">
+          <div>
+            <div class="name">${d.name}</div>
+            <div class="meta">👨 ${d.adults} | 👶 ${d.kids}</div>
+          </div>
+          <button class="delete-btn" onclick='deleteEntry("${doc.id}", "${d.userCode}")'>❌</button>
         </div>
 
-        <button class="small-btn" onclick='editEntry("${doc.id}", ${JSON.stringify(d)})'>➕ Item</button>
-        <button class="small-btn" onclick='deleteEntry("${doc.id}", "${d.code}")'>❌</button>
+        <div>
+          ${d.items.map(i => `<span class="item">${i}</span>`).join("")}
+        </div>
       </div>
     `;
 
-    totalA += Number(d.adults || 0);
-    totalK += Number(d.kids || 0);
+    totalA += d.adults;
+    totalK += d.kids;
   });
 
-  total.innerText = `👥 Gesamt: ${totalA} Erwachsene, ${totalK} Kinder`;
+  total.innerText = `👥 ${totalA} Erwachsene • ${totalK} Kinder`;
 });
 </script>
 
